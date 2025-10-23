@@ -1,0 +1,190 @@
+MainForm.cs（メインフォーム）
+using System;
+using System.Collections.Generic;
+using System.IO;
+using System.Linq;
+using System.Windows.Forms;
+
+public partial class MainForm : Form
+{
+    private string dataFile = "participants.dat";
+    private string internFile = "internPrograms.dat";
+
+    private List<InternProgram> internPrograms = new List<InternProgram>();
+
+    public MainForm()
+    {
+        InitializeComponent();
+        InitializeGrid();
+        LoadInternPrograms();
+        LoadParticipants();
+    }
+
+    private void InitializeGrid()
+    {
+        dataGridView1.AutoGenerateColumns = false;
+
+        dataGridView1.Columns.Add("Name", "氏名");
+        dataGridView1.Columns.Add("Year", "卒業年度");
+        dataGridView1.Columns.Add("Affiliation", "所属");
+        dataGridView1.Columns.Add("Phone", "電話番号");
+        dataGridView1.Columns.Add("Email", "メールアドレス");
+
+        // インターン名称（コンボボックス列）
+        var comboCol = new DataGridViewComboBoxColumn
+        {
+            Name = "InternName",
+            HeaderText = "インターン名称",
+            DisplayMember = "Name",
+            ValueMember = "Name"
+        };
+        dataGridView1.Columns.Add(comboCol);
+
+        dataGridView1.Columns.Add("StartDate", "開始日時");
+        dataGridView1.Columns.Add("EndDate", "終了日時");
+        dataGridView1.Columns.Add("Status", "選考状況");
+        dataGridView1.Columns.Add("Remarks", "備考");
+
+        dataGridView1.AllowUserToAddRows = true;
+    }
+
+    // --- インターン情報のロード ---
+    private void LoadInternPrograms()
+    {
+        internPrograms.Clear();
+        if (File.Exists(internFile))
+        {
+            foreach (var line in File.ReadAllLines(internFile))
+            {
+                var program = InternProgram.FromString(line);
+                if (program != null)
+                    internPrograms.Add(program);
+            }
+        }
+
+        var comboCol = (DataGridViewComboBoxColumn)dataGridView1.Columns["InternName"];
+        comboCol.DataSource = internPrograms;
+    }
+
+    // --- 参加者情報ロード ---
+    private void LoadParticipants()
+    {
+        if (!File.Exists(dataFile)) return;
+
+        dataGridView1.Rows.Clear();
+        foreach (var line in File.ReadAllLines(dataFile))
+        {
+            var parts = line.Split(',');
+            if (parts.Length < 10) continue;
+            dataGridView1.Rows.Add(parts);
+        }
+    }
+
+    // --- 参加者情報保存 ---
+    private void SaveParticipants()
+    {
+        var lines = new List<string>();
+        foreach (DataGridViewRow row in dataGridView1.Rows)
+        {
+            if (row.IsNewRow) continue;
+            var values = row.Cells.Cast<DataGridViewCell>()
+                                  .Select(c => c.Value?.ToString()?.Replace(",", "、") ?? "")
+                                  .ToArray();
+            lines.Add(string.Join(",", values));
+        }
+        File.WriteAllLines(dataFile, lines);
+    }
+
+    // --- CSV出力 ---
+    private void btnExport_Click(object sender, EventArgs e)
+    {
+        SaveFileDialog sfd = new SaveFileDialog
+        {
+            Filter = "CSVファイル (*.csv)|*.csv",
+            FileName = "export.csv"
+        };
+        if (sfd.ShowDialog() == DialogResult.OK)
+        {
+            DataGridViewToCSV(dataGridView1, sfd.FileName);
+            MessageBox.Show("CSVファイルを出力しました。");
+        }
+    }
+
+    public static void DataGridViewToCSV(DataGridView dgv, string path)
+    {
+        using (var sw = new StreamWriter(path, false, System.Text.Encoding.UTF8))
+        {
+            // ヘッダー
+            var headers = dgv.Columns.Cast<DataGridViewColumn>()
+                .Where(c => c.Visible)
+                .Select(c => c.HeaderText);
+            sw.WriteLine(string.Join(",", headers));
+
+            // データ
+            foreach (DataGridViewRow row in dgv.Rows)
+            {
+                if (row.IsNewRow || !row.Visible) continue;
+
+                var cells = row.Cells.Cast<DataGridViewCell>()
+                    .Where(c => c.OwningColumn.Visible)
+                    .Select(c => c.Value?.ToString()?.Replace(",", "、") ?? "");
+                sw.WriteLine(string.Join(",", cells));
+            }
+        }
+    }
+
+    // --- インターンフォームを開く ---
+    private void btnOpenInternForm_Click(object sender, EventArgs e)
+    {
+        using (var form = new InternForm())
+        {
+            if (form.ShowDialog() == DialogResult.OK)
+            {
+                dynamic result = form.Tag;
+                List<InternProgram> programs = result.Programs;
+                Dictionary<string, string> changes = result.NameChanges;
+
+                // ComboBox候補更新
+                var comboColumn = (DataGridViewComboBoxColumn)dataGridView1.Columns["InternName"];
+                comboColumn.DataSource = null;
+                comboColumn.DataSource = programs;
+                comboColumn.DisplayMember = "Name";
+                comboColumn.ValueMember = "Name";
+
+                // 旧名→新名の置換
+                foreach (DataGridViewRow row in dataGridView1.Rows)
+                {
+                    if (row.Cells["InternName"].Value is string value && changes.ContainsKey(value))
+                    {
+                        row.Cells["InternName"].Value = changes[value];
+                    }
+                }
+
+                // 開始・終了日時の自動反映
+                internPrograms = programs;
+            }
+        }
+    }
+
+    // --- インターン名選択時に日付自動入力 ---
+    private void dataGridView1_CellValueChanged(object sender, DataGridViewCellEventArgs e)
+    {
+        if (e.RowIndex < 0 || e.ColumnIndex < 0) return;
+        if (dataGridView1.Columns[e.ColumnIndex].Name == "InternName")
+        {
+            var name = dataGridView1.Rows[e.RowIndex].Cells["InternName"].Value?.ToString();
+            var program = internPrograms.FirstOrDefault(p => p.Name == name);
+            if (program != null)
+            {
+                dataGridView1.Rows[e.RowIndex].Cells["StartDate"].Value = program.StartDate;
+                dataGridView1.Rows[e.RowIndex].Cells["EndDate"].Value = program.EndDate;
+            }
+        }
+    }
+
+    // --- フォーム終了時に保存 ---
+    private void MainForm_FormClosing(object sender, FormClosingEventArgs e)
+    {
+        SaveParticipants();
+    }
+}

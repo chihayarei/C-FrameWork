@@ -1,0 +1,23 @@
+public class InternProgram
+{
+    public string Name { get; set; }
+    public DateTime StartDate { get; set; }
+    public DateTime EndDate { get; set; }
+
+    public override string ToString()
+    {
+        return $"{Name},{StartDate:yyyy-MM-dd HH:mm},{EndDate:yyyy-MM-dd HH:mm}";
+    }
+
+    public static InternProgram FromString(string line)
+    {
+        var parts = line.Split(',');
+        if (parts.Length < 3) return null;
+        return new InternProgram
+        {
+            Name = parts[0],
+            StartDate = DateTime.Parse(parts[1]),
+            EndDate = DateTime.Parse(parts[2])
+        };
+    }
+}

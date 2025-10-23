@@ -1,0 +1,152 @@
+using System;
+using System.Collections.Generic;
+using System.IO;
+using System.Linq;
+using System.Windows.Forms;
+
+public partial class InternForm : Form
+{
+    private string filePath = "internPrograms.dat";
+    private List<InternProgram> internPrograms = new List<InternProgram>();
+    private Dictionary<string, string> nameChanges = new Dictionary<string, string>();
+
+    public InternForm()
+    {
+        InitializeComponent();
+        InitializeGrid();
+        LoadFromDat();
+    }
+
+    private void InitializeGrid()
+    {
+        dataGridView1.AutoGenerateColumns = false;
+        dataGridView1.Columns.Add("Name", "インターン名称");
+        dataGridView1.Columns.Add("StartDate", "開始日時");
+        dataGridView1.Columns.Add("EndDate", "終了日時");
+
+        dataGridView1.Columns["StartDate"].Width = 140;
+        dataGridView1.Columns["EndDate"].Width = 140;
+    }
+
+    private void LoadFromDat()
+    {
+        internPrograms.Clear();
+
+        if (File.Exists(filePath))
+        {
+            foreach (var line in File.ReadAllLines(filePath))
+            {
+                var program = InternProgram.FromString(line);
+                if (program != null)
+                    internPrograms.Add(program);
+            }
+        }
+
+        UpdateGrid();
+    }
+
+    private void SaveToDat()
+    {
+        File.WriteAllLines(filePath, internPrograms.Select(p => p.ToString()));
+    }
+
+    private void UpdateGrid()
+    {
+        dataGridView1.Rows.Clear();
+        foreach (var program in internPrograms)
+        {
+            int index = dataGridView1.Rows.Add(program.Name, program.StartDate, program.EndDate);
+            dataGridView1.Rows[index].Tag = program;
+        }
+    }
+
+    // ▼ 登録ボタン
+    private void btnAdd_Click(object sender, EventArgs e)
+    {
+        var name = txtName.Text.Trim();
+        if (string.IsNullOrEmpty(name))
+        {
+            MessageBox.Show("インターン名称を入力してください。");
+            return;
+        }
+
+        var start = dateTimePickerStart.Value;
+        var end = dateTimePickerEnd.Value;
+
+        var existing = internPrograms.FirstOrDefault(p => p.Name == name);
+        if (existing != null)
+        {
+            MessageBox.Show("同じインターン名称が既に存在します。");
+            return;
+        }
+
+        internPrograms.Add(new InternProgram
+        {
+            Name = name,
+            StartDate = start,
+            EndDate = end
+        });
+
+        SaveToDat();
+        UpdateGrid();
+
+        txtName.Clear();
+    }
+
+    // ▼ 削除ボタン
+    private void btnDelete_Click(object sender, EventArgs e)
+    {
+        if (dataGridView1.CurrentRow == null) return;
+
+        var name = dataGridView1.CurrentRow.Cells["Name"].Value?.ToString();
+        if (MessageBox.Show($"{name} を削除しますか？", "確認", MessageBoxButtons.YesNo) == DialogResult.Yes)
+        {
+            internPrograms.RemoveAll(p => p.Name == name);
+            SaveToDat();
+            UpdateGrid();
+        }
+    }
+
+    // ▼ 保存ボタン（編集内容反映）
+    private void btnSave_Click(object sender, EventArgs e)
+    {
+        nameChanges.Clear();
+
+        foreach (DataGridViewRow row in dataGridView1.Rows)
+        {
+            if (row.IsNewRow) continue;
+            if (!(row.Tag is InternProgram original)) continue;
+
+            string newName = row.Cells["Name"].Value?.ToString();
+            DateTime newStart = Convert.ToDateTime(row.Cells["StartDate"].Value);
+            DateTime newEnd = Convert.ToDateTime(row.Cells["EndDate"].Value);
+
+            if (newName != original.Name)
+            {
+                nameChanges[original.Name] = newName;
+                original.Name = newName;
+            }
+            original.StartDate = newStart;
+            original.EndDate = newEnd;
+        }
+
+        SaveToDat();
+        MessageBox.Show("変更を保存しました。");
+    }
+
+    // ▼ 閉じるボタン
+    private void btnClose_Click(object sender, EventArgs e)
+    {
+        SaveToDat();
+
+        // メインフォームにデータを返す
+        this.Tag = new
+        {
+            Programs = internPrograms,
+            NameChanges = nameChanges
+        };
+
+        this.DialogResult = DialogResult.OK;
+        this.Close();
+    }
+}
