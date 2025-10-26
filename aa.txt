@@ -1,0 +1,79 @@
+MainForm
+private List<InternProgram> internList = new List<InternProgram>();
+
+private void MainForm_Load(object sender, EventArgs e)
+{
+    LoadInternList();
+    UpdateComboBox();
+}
+
+private void LoadInternList()
+{
+    internList.Clear();
+
+    if (!File.Exists("intern.dat")) return;
+
+    var lines = File.ReadAllLines("intern.dat");
+
+    foreach (var line in lines)
+    {
+        var data = line.Split(',');
+        internList.Add(new InternProgram
+        {
+            Name = data[0],
+            Start = DateTime.Parse(data[1]),
+            End = DateTime.Parse(data[2])
+        });
+    }
+}
+
+private void UpdateComboBox()
+{
+    comboBoxInternName.DataSource = null;
+    comboBoxInternName.DataSource = internList;
+    comboBoxInternName.DisplayMember = "Name";
+}
+
+
+ComboBox選択時に開始/終了を自動反映
+private void comboBoxInternName_SelectedIndexChanged(object sender, EventArgs e)
+{
+    if (comboBoxInternName.SelectedItem is InternProgram selected)
+    {
+        textBoxStartDate.Text = selected.Start.ToString("yyyy/MM/dd");
+        textBoxEndDate.Text = selected.End.ToString("yyyy/MM/dd");
+    }
+}
+
+
+
+
+
+
+InternProgram.cs
+
+public class InternProgram
+{
+    public string Name { get; set; }
+    public DateTime Start { get; set; }
+    public DateTime End { get; set; }
+
+    public override string ToString()
+    {
+        return Name;
+    }
+}
+
+
+
+補足（編集時の同期）
+
+InternFormで編集して保存 →
+MainFormに戻った時に LoadInternList() を呼べば更新されます。
+
+private void buttonRefresh_Click(object sender, EventArgs e)
+{
+    LoadInternList();
+    UpdateComboBox();
+}
+
