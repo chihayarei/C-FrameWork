@@ -1,0 +1,66 @@
+① データクラス（例）
+
+.dat に保存してるのが「行テキストの連結」だとして…
+public class InternData
+{
+    public string CompanyName { get; set; }
+    public string Position { get; set; }
+    public string Note { get; set; } // 改行含む
+    public override string ToString() => $"{CompanyName} - {Position}";
+}
+
+
+② 読み込み（アプリ起動時 / メインフォームの Load）
+
+※ 改行含むので ¥n で復元している前提
+private List<InternData> internList = new List<InternData>();
+
+private void MainForm_Load(object sender, EventArgs e)
+{
+    if (!File.Exists("internData.dat")) return;
+
+    var lines = File.ReadAllLines("internData.dat");
+    foreach (var line in lines)
+    {
+        var parts = line.Split('|'); // 例：区切り文字
+        internList.Add(new InternData
+        {
+            CompanyName = parts[0],
+            Position = parts[1],
+            Note = parts[2].Replace("\\n", "\n")
+        });
+    }
+
+    ApplyToComboBox();
+}
+
+private void ApplyToComboBox()
+{
+    var comboColumn = (DataGridViewComboBoxColumn)mainDgv.Columns["InternCombo"];
+    comboColumn.Items.Clear();
+    foreach (var item in internList)
+        comboColumn.Items.Add(item.ToString());
+}
+
+
+③ InternshipForm で「保存」時に MainForm に反映
+
+（イベント or 戻り値で渡す）
+
+private void SaveButton_Click(object sender, EventArgs e)
+{
+    // dat保存処理（済）
+    // …
+
+    // MainFormに反映
+    ((MainForm)Owner).ReloadInternData();
+    MessageBox.Show("保存 + 反映完了しました！");
+}
+
+メインフォーム側はpublic void ReloadInternData()
+{
+    internList.Clear();
+    MainForm_Load(null, null);
+}
+
+
