@@ -1,0 +1,80 @@
+Step 1: リロード前に、全行の選択を一時保存する
+
+private List<string> prevSelectedInterns = new List<string>();
+
+private void SaveSelectedInterns()
+{
+    prevSelectedInterns.Clear();
+    foreach (DataGridViewRow row in dataGridView.Rows)
+    {
+        var cell = row.Cells["InternColumn"] as DataGridViewComboBoxCell;
+        if (cell?.Value != null)
+            prevSelectedInterns.Add(cell.Value.ToString());
+        else
+            prevSelectedInterns.Add(""); // 未選択なら空登録
+    }
+}
+
+
+Step 2: dat から ComboBox アイテムを再読込
+private void ReloadInternItems()
+{
+    var lines = File.ReadAllLines("intern.dat");
+
+    List<string> internNames = new List<string>();
+    for (int i = 0; i < lines.Length; i += 3)
+        internNames.Add(lines[i]);
+
+    foreach (DataGridViewRow row in dataGridView.Rows)
+    {
+        DataGridViewComboBoxCell combo =
+            row.Cells["InternColumn"] as DataGridViewComboBoxCell;
+        combo.Items.Clear();
+        combo.Items.AddRange(internNames.ToArray());
+    }
+}
+
+
+Step 3: 行ごとに以前選択してた値を復帰
+private void RestoreSelectedInterns()
+{
+    for (int i = 0; i < dataGridView.Rows.Count; i++)
+    {
+        var row = dataGridView.Rows[i];
+        var combo = row.Cells["InternColumn"] as DataGridViewComboBoxCell;
+
+        if (combo == null) continue;
+
+        // アイテム数が足りている場合のみ
+        if (combo.Items.Count > i)
+        {
+            // 行番号に対応した最新名称へ強制変更
+            combo.Value = combo.Items[i];
+        }
+        else if (combo.Items.Count > 0)
+        {
+            // 万が一足りない場合は先頭へ
+            combo.Value = combo.Items[0];
+        }
+        else
+        {
+            combo.Value = null;
+        }
+    }
+}
+
+
+
+全体の呼び出し例
+
+
+private void UpdateInternDataReload()
+{
+    SaveSelectedInterns();
+    ReloadInternItems();
+    RestoreSelectedInterns();
+
+    // 必要なら start/end 自動更新も実行
+    UpdateDateValuesByIntern();
+}
+
