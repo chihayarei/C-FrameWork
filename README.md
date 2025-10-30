@@ -1,79 +1,47 @@
-# C-FrameWork 
-セレクト側
-private void cmbInternName_SelectedIndexChanged(object sender, EventArgs e)
-{
-    if (cmbInternName.SelectedItem == null) return;
+現在、インターン情報は複数の Excel ファイルで管理されています。
+ファイルが分かれているため、
+・最新情報の把握が難しい
+・二重管理によるミス
+・情報抽出に時間がかかる
+といった問題が発生しています。
 
-    string selectedName = cmbInternName.SelectedItem.ToString();
-    string[] lines = File.ReadAllLines("internData.dat");
-
-    for (int i = 0; i < lines.Length - 3; i += 4) // ←4行1セット
-    {
-        string name = lines[i];
-        string start = lines[i + 1];
-        string end = lines[i + 2];
-
-        if (name == selectedName)
-        {
-            if (DateTime.TryParse(start, out DateTime s))
-                dtpStart.Value = s;
-
-            if (DateTime.TryParse(end, out DateTime e1))
-                dtpEnd.Value = e1;
-
-            break;
-        }
-    }
-}
+そこで、これらの情報を1つのシステムで統合管理できるようにしました。
+登録・編集・検索・抽出をすべて1画面で行え、
+担当者が増えても作業が滞らないようになっています。
 
 
 
-
-コンボ側
-private void LoadInternProgramsToCombo()
-{
-    cmbInternName.Items.Clear();
-
-    string[] lines = File.ReadAllLines("internData.dat");
-
-    for (int i = 0; i < lines.Length - 3; i += 4)
-    {
-        cmbInternName.Items.Add(lines[i]); // インターン名称のみ追加
-    }
-}
-
-private void dgvMain_CellValueChanged(object sender, DataGridViewCellEventArgs e)
-{
-    if (e.RowIndex < 0) return; // ヘッダ行は無視
-
-    if (dgvMain.Columns[e.ColumnIndex].Name == "InternNameColumn")
-    {
-        DataGridViewRow row = dgvMain.Rows[e.RowIndex];
-        string selectedName = row.Cells["InternNameColumn"].Value?.ToString();
-        if (string.IsNullOrEmpty(selectedName)) return;
-
-        string[] lines = File.ReadAllLines("internData.dat");
-
-        for (int i = 0; i < lines.Length - 3; i += 4)
-        {
-            string name = lines[i];
-            string start = lines[i + 1];
-            string end = lines[i + 2];
-
-            if (name == selectedName)
-            {
-                if (DateTime.TryParse(start, out DateTime s))
-                    row.Cells["StartDateColumn"].Value = s;
-
-                if (DateTime.TryParse(end, out DateTime e1))
-                    row.Cells["EndDateColumn"].Value = e1;
-
-                break;
-            }
-        }
-    }
-}
+メイン画面は Excel に近い操作感で、
+新しいシステムでも担当者がすぐに使いこなせます。
+検索も、氏名・学校・卒業年度などで簡単に絞り込めます。
 
 
-dgvMain.CellValueChanged += dgvMain_CellValueChanged;
+
+検索したデータを CSV形式で即出力できるため、
+案内メールの送信先リスト作成など、
+実務作業が数分で完了します。
+
+また、情報が自動保存されるので、ファイルの更新忘れも防げます。
+
+
+
+「では実際に操作をお見せします。
+まずアプリを開くと、前回保存したインターン情報が自動的に読み込まれます。
+これまではExcelで探すのに数分かかっていましたが、
+一覧化されているので、すぐに確認できます。」
+
+「次に、新しいインターンを登録してみます。
+このように入力するだけで、開始・終了日時も自動的に補完されます。
+手入力によるミスを防ぐことができる点が特徴です。」
+
+「検索結果はこのようにCSVに出力できます。
+これまで担当者がExcelで条件を指定して抽出していた作業が、
+ワンクリックで完了します。」
+
+
+「このシステムにより、
+複数のExcelで分散していたインターン情報を一元管理し、
+登録・検索・共有の全てを一画面で完結できるようになりました。
+今後はデータベース連携やクラウド化により、
+より柔軟な運用も目指していきます。
 
